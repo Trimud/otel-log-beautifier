@@ -13,7 +13,6 @@ export class BeautifiedTerminal implements vscode.Pseudoterminal {
   private pty: PtyLike | null = null;
   private processor: OutputProcessor | null = null;
   private batcher: OutputBatcher | null = null;
-  private outputChannel: vscode.OutputChannel | null = null;
 
   constructor(
     private readonly options: {
@@ -28,23 +27,18 @@ export class BeautifiedTerminal implements vscode.Pseudoterminal {
     this.processor = new OutputProcessor((data) => this.batcher!.write(data));
 
     try {
-      const outputChannel = this.getOutputChannel();
       const { pty, usedFallback } = PtyBridge.create({
         shell: this.options.shell,
         shellArgs: this.options.shellArgs,
         cols: initialDimensions?.columns ?? 80,
         rows: initialDimensions?.rows ?? 24,
         cwd: this.options.cwd,
-        onLog: (msg) => outputChannel.appendLine(msg),
       });
 
       this.pty = pty;
 
       if (usedFallback) {
-        this.getOutputChannel().appendLine(
-          '[OTel Log Beautifier] node-pty unavailable, using child_process.spawn fallback. ' +
-          'Terminal resize and interactive programs (vim, less) will not work.',
-        );
+        console.warn('[OTel Log Beautifier] node-pty unavailable, using spawn fallback.');
       }
 
       this.pty.onData((data) => {
@@ -93,12 +87,5 @@ export class BeautifiedTerminal implements vscode.Pseudoterminal {
 
   isBeautifyEnabled(): boolean {
     return this.processor?.isBeautifyEnabled() ?? true;
-  }
-
-  private getOutputChannel(): vscode.OutputChannel {
-    if (!this.outputChannel) {
-      this.outputChannel = vscode.window.createOutputChannel('OTel Log Beautifier');
-    }
-    return this.outputChannel;
   }
 }
