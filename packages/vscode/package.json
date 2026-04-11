@@ -1,13 +1,20 @@
 {
-  "name": "otel-log-beautifier-vscode",
+  "name": "otel-log-beautifier",
   "displayName": "OTel Log Beautifier",
   "description": "Beautifies OpenTelemetry JSON structured logs in the VS Code terminal",
   "version": "0.1.0",
+  "publisher": "trimud",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Trimud/otel-log-beautifier"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": ["Other"],
-  "activationEvents": [],
+  "activationEvents": [
+    "onCommand:otelLogBeautifier.openTerminal"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
@@ -34,7 +41,7 @@
     ]
   },
   "scripts": {
-    "build": "esbuild src/extension.ts --bundle --outdir=dist --external:vscode --external:node-pty --format=cjs --platform=node",
+    "build": "node esbuild.config.mjs",
     "test": "vitest run"
   },
   "dependencies": {
