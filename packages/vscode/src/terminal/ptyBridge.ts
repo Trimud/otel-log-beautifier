@@ -28,7 +28,18 @@ export class PtyBridge {
     const args = options.shellArgs ? [...options.shellArgs] : [];
 
     try {
-      const nodePty = require('node-pty');
+      // Try loading node-pty from multiple locations:
+      // 1. Bundled with the extension (production .vsix)
+      // 2. Workspace node_modules (F5 development mode)
+      let nodePty: any;
+      try {
+        nodePty = require('node-pty');
+      } catch {
+        // In development, try resolving from the workspace root
+        const path = require('path');
+        const workspaceRoot = path.resolve(__dirname, '..', '..', '..');
+        nodePty = require(path.join(workspaceRoot, 'node_modules', 'node-pty'));
+      }
       const ptyProcess = nodePty.spawn(shell, args, {
         name: 'xterm-256color',
         cols: options.cols ?? 80,
@@ -58,9 +69,14 @@ export class PtyBridge {
         usedFallback: false,
       };
     } catch {
-      const child = spawn(shell, args, {
+      // Fallback: spawn shell in interactive mode so it shows a prompt
+      const shellArgs = args.length > 0 ? args : ['-i'];
+      const child = spawn(shell, shellArgs, {
         cwd: options.cwd ?? process.env.HOME,
-        env: options.env ?? (process.env as Record<string, string>),
+        env: {
+          ...(options.env ?? process.env),
+          TERM: 'dumb', // signal that this is not a real TTY
+        } as Record<string, string>,
         stdio: ['pipe', 'pipe', 'pipe'],
       });
 
