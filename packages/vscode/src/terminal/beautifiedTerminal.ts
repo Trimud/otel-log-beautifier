@@ -28,12 +28,14 @@ export class BeautifiedTerminal implements vscode.Pseudoterminal {
     this.processor = new OutputProcessor((data) => this.batcher!.write(data));
 
     try {
+      const outputChannel = this.getOutputChannel();
       const { pty, usedFallback } = PtyBridge.create({
         shell: this.options.shell,
         shellArgs: this.options.shellArgs,
         cols: initialDimensions?.columns ?? 80,
         rows: initialDimensions?.rows ?? 24,
         cwd: this.options.cwd,
+        onLog: (msg) => outputChannel.appendLine(msg),
       });
 
       this.pty = pty;
