@@ -11,6 +11,7 @@
     "test": "npm run test -w packages/core && npm run test -w packages/vscode",
     "test:core": "npm run test -w packages/core",
     "test:vscode": "npm run test -w packages/vscode",
-    "package": "npm run build && cd packages/vscode && npx @vscode/vsce package --no-dependencies"
+    "package": "npm run build && cd packages/vscode && npx @vscode/vsce package --no-dependencies",
+    "postinstall": "cd packages/vscode/node_modules && ln -sf ../../../node_modules/node-pty node-pty 2>/dev/null || true"
   }
 }
