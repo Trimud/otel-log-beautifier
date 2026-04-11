@@ -24,6 +24,16 @@ describe('OutputProcessor', () => {
     expect(combined).toContain('\x1b['); // contains ANSI color codes
   });
 
+  test('passes partial content through immediately (shell prompts)', () => {
+    const output: string[] = [];
+    const proc = new OutputProcessor((data) => output.push(data));
+
+    proc.processData('user@host:~$ ');
+
+    const combined = output.join('');
+    expect(combined).toContain('user@host:~$ ');
+  });
+
   test('bypasses parse pipeline during alt screen mode', () => {
     const output: string[] = [];
     const proc = new OutputProcessor((data) => output.push(data));
@@ -32,7 +42,6 @@ describe('OutputProcessor', () => {
     proc.processData('{"severity_text":"INFO","body":"Should passthrough raw"}\n');
 
     const combined = output.join('');
-    // In alt screen, JSON should NOT be formatted, just passed through raw
     expect(combined).toContain('"severity_text"');
   });
 
@@ -45,7 +54,7 @@ describe('OutputProcessor', () => {
     proc.processData('{"severity_text":"INFO","body":"Now formatted","timestamp":"2026-04-11T18:26:07.864Z"}\n');
 
     const combined = output.join('');
-    expect(combined).toContain('\x1b['); // ANSI codes present = formatted
+    expect(combined).toContain('\x1b[');
     expect(combined).toContain('Now formatted');
   });
 
@@ -58,17 +67,6 @@ describe('OutputProcessor', () => {
 
     const combined = output.join('');
     expect(combined).toContain('"severity_text"');
-  });
-
-  test('toggle flushes line buffer before switching', () => {
-    const output: string[] = [];
-    const proc = new OutputProcessor((data) => output.push(data));
-
-    proc.processData('partial content without newline');
-    proc.setBeautifyEnabled(false);
-
-    const combined = output.join('');
-    expect(combined).toContain('partial content without newline');
   });
 
   test('filters out lines below the set level threshold', () => {
@@ -131,5 +129,16 @@ describe('OutputProcessor', () => {
     proc.processData('{"severity_text":"DEBUG","body":"filtered","timestamp":"2026-04-11T18:26:07.864Z"}\n');
 
     expect(proc.getSuppressedCount()).toBe(2);
+  });
+
+  test('handles mixed content: JSON lines + shell prompt in one chunk', () => {
+    const output: string[] = [];
+    const proc = new OutputProcessor((data) => output.push(data));
+
+    proc.processData('{"severity_text":"INFO","body":"log line","timestamp":"2026-04-11T18:26:07.864Z"}\nuser@host:~$ ');
+
+    const combined = output.join('');
+    expect(combined).toContain('log line');
+    expect(combined).toContain('user@host:~$ ');
   });
 });
