@@ -70,4 +70,66 @@ describe('OutputProcessor', () => {
     const combined = output.join('');
     expect(combined).toContain('partial content without newline');
   });
+
+  test('filters out lines below the set level threshold', () => {
+    const output: string[] = [];
+    const proc = new OutputProcessor((data) => output.push(data));
+
+    proc.setLevelFilter('ERROR');
+    proc.processData('{"severity_text":"INFO","body":"Should be hidden","timestamp":"2026-04-11T18:26:07.864Z"}\n');
+    proc.processData('{"severity_text":"ERROR","body":"Should be visible","timestamp":"2026-04-11T18:26:07.864Z"}\n');
+
+    const combined = output.join('');
+    expect(combined).not.toContain('Should be hidden');
+    expect(combined).toContain('Should be visible');
+  });
+
+  test('WARN+ filter shows WARN, ERROR, and FATAL', () => {
+    const output: string[] = [];
+    const proc = new OutputProcessor((data) => output.push(data));
+
+    proc.setLevelFilter('WARN');
+    proc.processData('{"severity_text":"DEBUG","body":"hidden","timestamp":"2026-04-11T18:26:07.864Z"}\n');
+    proc.processData('{"severity_text":"INFO","body":"hidden too","timestamp":"2026-04-11T18:26:07.864Z"}\n');
+    proc.processData('{"severity_text":"WARN","body":"visible warn","timestamp":"2026-04-11T18:26:07.864Z"}\n');
+    proc.processData('{"severity_text":"ERROR","body":"visible error","timestamp":"2026-04-11T18:26:07.864Z"}\n');
+
+    const combined = output.join('');
+    expect(combined).not.toContain('hidden');
+    expect(combined).toContain('visible warn');
+    expect(combined).toContain('visible error');
+  });
+
+  test('null level filter shows all lines', () => {
+    const output: string[] = [];
+    const proc = new OutputProcessor((data) => output.push(data));
+
+    proc.setLevelFilter('ERROR');
+    proc.setLevelFilter(null);
+    proc.processData('{"severity_text":"DEBUG","body":"now visible","timestamp":"2026-04-11T18:26:07.864Z"}\n');
+
+    const combined = output.join('');
+    expect(combined).toContain('now visible');
+  });
+
+  test('non-JSON lines always pass through regardless of level filter', () => {
+    const output: string[] = [];
+    const proc = new OutputProcessor((data) => output.push(data));
+
+    proc.setLevelFilter('ERROR');
+    proc.processData('regular shell output\n');
+
+    const combined = output.join('');
+    expect(combined).toContain('regular shell output');
+  });
+
+  test('tracks suppressed line count when filtering', () => {
+    const proc = new OutputProcessor(() => {});
+
+    proc.setLevelFilter('ERROR');
+    proc.processData('{"severity_text":"INFO","body":"filtered","timestamp":"2026-04-11T18:26:07.864Z"}\n');
+    proc.processData('{"severity_text":"DEBUG","body":"filtered","timestamp":"2026-04-11T18:26:07.864Z"}\n');
+
+    expect(proc.getSuppressedCount()).toBe(2);
+  });
 });

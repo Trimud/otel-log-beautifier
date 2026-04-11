@@ -18,6 +18,18 @@
       {
         "command": "otelLogBeautifier.toggleBeautify",
         "title": "OTel: Toggle Beautify"
+      },
+      {
+        "command": "otelLogBeautifier.filterError",
+        "title": "OTel: Show Only ERROR"
+      },
+      {
+        "command": "otelLogBeautifier.filterWarn",
+        "title": "OTel: Show Only WARN+"
+      },
+      {
+        "command": "otelLogBeautifier.filterAll",
+        "title": "OTel: Show All Levels"
       }
     ]
   },

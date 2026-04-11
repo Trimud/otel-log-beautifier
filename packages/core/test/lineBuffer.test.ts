@@ -70,4 +70,34 @@ describe('LineBuffer', () => {
     buffer.flush();
     expect(lines).toEqual(['partial content']);
   });
+
+  test('detects binary data (NUL bytes) and calls onBinary instead of onLine', () => {
+    const lines: string[] = [];
+    const binary: string[] = [];
+    const buffer = new LineBuffer(
+      (line) => lines.push(line),
+      (data) => binary.push(data),
+    );
+
+    const binaryChunk = 'text\x00with\x00nulls\n';
+    buffer.processChunk(binaryChunk);
+
+    expect(lines).toEqual([]);
+    expect(binary.length).toBe(1);
+    expect(binary[0]).toBe(binaryChunk);
+  });
+
+  test('passes through non-binary data normally when onBinary is provided', () => {
+    const lines: string[] = [];
+    const binary: string[] = [];
+    const buffer = new LineBuffer(
+      (line) => lines.push(line),
+      (data) => binary.push(data),
+    );
+
+    buffer.processChunk('normal text\n');
+
+    expect(lines).toEqual(['normal text']);
+    expect(binary).toEqual([]);
+  });
 });
