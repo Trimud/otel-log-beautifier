@@ -1,0 +1,154 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish to VS Code Marketplace (requires VSCE_PAT secret)'
+        type: boolean
+        default: false
+      dry_run:
+        description: 'Skip creating GitHub release and marketplace publish (just build vsix files)'
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: darwin-arm64
+          - os: macos-13
+            target: darwin-x64
+          - os: ubuntu-latest
+            target: linux-x64
+          - os: ubuntu-24.04-arm
+            target: linux-arm64
+          - os: windows-latest
+            target: win32-x64
+          - os: windows-11-arm
+            target: win32-arm64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Make spawn-helper executable (Unix)
+        if: runner.os != 'Windows'
+        run: chmod +x node_modules/node-pty/prebuilds/*/spawn-helper 2>/dev/null || true
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Prepare and package vsix
+        shell: bash
+        run: |
+          ./scripts/prepare-vsix.sh ${{ matrix.target }}
+          cd packages/vscode/.vsix-stage
+          npx @vscode/vsce package --target ${{ matrix.target }} --out "../otel-log-beautifier-${{ matrix.target }}-${GITHUB_REF_NAME#v}.vsix" || \
+            npx @vscode/vsce package --target ${{ matrix.target }} --out "../otel-log-beautifier-${{ matrix.target }}.vsix"
+
+      - name: Upload vsix artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix-${{ matrix.target }}
+          path: packages/vscode/*.vsix
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Download all vsix artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: vsix-artifacts
+          pattern: vsix-*
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -la vsix-artifacts/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: vsix-artifacts/*.vsix
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+
+      - name: Publish to VS Code Marketplace
+        if: ${{ !contains(github.ref_name, '-') }}
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then
+            echo "VSCE_PAT secret not set, skipping marketplace publish"
+            exit 0
+          fi
+          for vsix in vsix-artifacts/*.vsix; do
+            echo "Publishing $vsix"
+            npx @vscode/vsce publish --packagePath "$vsix"
+          done
+
+  manual-publish:
+    name: Manual Publish
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && inputs.publish && !inputs.dry_run
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Download all vsix artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: vsix-artifacts
+          pattern: vsix-*
+          merge-multiple: true
+
+      - name: Publish to VS Code Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then
+            echo "ERROR: VSCE_PAT secret is not set" >&2
+            exit 1
+          fi
+          for vsix in vsix-artifacts/*.vsix; do
+            echo "Publishing $vsix"
+            npx @vscode/vsce publish --packagePath "$vsix"
+          done
