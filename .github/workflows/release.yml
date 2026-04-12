@@ -69,9 +69,10 @@ jobs:
         shell: bash
         run: |
           ./scripts/prepare-vsix.sh ${{ matrix.target }}
+          VSCE="$GITHUB_WORKSPACE/node_modules/.bin/vsce"
           cd packages/vscode/.vsix-stage
           VERSION=$(node -p "require('./package.json').version")
-          npx @vscode/vsce package --target ${{ matrix.target }} --out "../otel-log-beautifier-${{ matrix.target }}-${VERSION}.vsix"
+          "$VSCE" package --target ${{ matrix.target }} --out "../otel-log-beautifier-${{ matrix.target }}-${VERSION}.vsix"
 
       - name: Upload vsix artifact
         uses: actions/upload-artifact@v4
