@@ -143,30 +143,35 @@ otel-log-beautifier/
 
 ### Data flow
 
-```
-User input -> handleInput() -> node-pty -> shell process
-                                              |
-                                        pty.onData(chunk)
-                                              |
-                                  AltScreenDetector (ESC[?1049h)
-                                     |                |
-                                IS alt screen    NOT alt screen
-                                     |                |
-                               raw passthrough   OutputProcessor
-                                              (split on \n inline)
-                                                |
-                                          JsonDetector
-                                            |         |
-                                          NO         YES
-                                           |          |
-                                     passthrough  LogNormalizer
-                                                  (priority chain)
-                                                      |
-                                              LogFormatter + ResourceTracker
-                                                      |
-                                              OutputBatcher (16ms)
-                                                      |
-                                            writeEmitter -> VS Code terminal
+```mermaid
+flowchart TD
+    Input["User input<br/>(keystrokes / paste)"] --> HandleInput["handleInput()"]
+    HandleInput --> PtyWrite["node-pty.write()"]
+    PtyWrite --> Shell["Shell process<br/>(zsh / bash / pwsh)"]
+    Shell --> PtyData["pty.onData(chunk)"]
+    PtyData --> AltScreen{"AltScreenDetector<br/>ESC[?1049h/47h/1047h"}
+    AltScreen -->|IS alt screen<br/>vim, less, top| RawPass["Raw passthrough"]
+    AltScreen -->|NOT alt screen| OutputProc["OutputProcessor<br/>(split on \n inline)"]
+    OutputProc --> JsonDet{"JsonDetector<br/>(fast-path + ANSI strip)"}
+    JsonDet -->|NO<br/>shell prompts, plain text| NonJsonPass["Passthrough"]
+    JsonDet -->|YES| Normalizer["LogNormalizer<br/>(OTel > bunyan > pino > winston > generic)"]
+    Normalizer --> Formatter["LogFormatter + ResourceTracker<br/>(ANSI colors, field layout, suppress repeats)"]
+    Formatter --> LevelFilter{"Level filter<br/>(ERROR / WARN+ / all)"}
+    LevelFilter -->|Below threshold| Suppressed["Suppressed<br/>(counter++)"]
+    LevelFilter -->|Meets threshold| Batcher["OutputBatcher<br/>(16ms lazy setTimeout)"]
+    RawPass --> Batcher
+    NonJsonPass --> Batcher
+    Batcher --> WriteEmitter["writeEmitter.fire()"]
+    WriteEmitter --> Terminal["VS Code terminal<br/>(xterm.js render)"]
+
+    classDef input fill:#1e3a8a,stroke:#3b82f6,color:#fff
+    classDef decision fill:#7c2d12,stroke:#f97316,color:#fff
+    classDef process fill:#064e3b,stroke:#10b981,color:#fff
+    classDef output fill:#1e293b,stroke:#64748b,color:#fff
+    class Input,HandleInput input
+    class AltScreen,JsonDet,LevelFilter decision
+    class OutputProc,Normalizer,Formatter,Batcher process
+    class Terminal,RawPass,NonJsonPass,Suppressed output
 ```
 
 ### Key design decisions
