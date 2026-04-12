@@ -4,14 +4,38 @@
   "description": "Beautifies OpenTelemetry JSON structured logs in the VS Code terminal",
   "version": "0.1.0",
   "publisher": "trimud",
+  "license": "MIT",
+  "icon": "icon.png",
+  "homepage": "https://github.com/Trimud/otel-log-beautifier#readme",
   "repository": {
     "type": "git",
     "url": "https://github.com/Trimud/otel-log-beautifier"
   },
+  "bugs": {
+    "url": "https://github.com/Trimud/otel-log-beautifier/issues"
+  },
+  "keywords": [
+    "opentelemetry",
+    "otel",
+    "logs",
+    "logging",
+    "json",
+    "terminal",
+    "beautifier",
+    "pino",
+    "winston",
+    "bunyan",
+    "structured-logs",
+    "ndjson"
+  ],
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Other"],
+  "categories": ["Other", "Visualization"],
   "activationEvents": [
     "onStartupFinished"
   ],
