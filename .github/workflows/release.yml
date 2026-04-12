@@ -23,9 +23,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Both macOS targets run on Apple Silicon — node-pty ships both
+          # darwin-arm64 and darwin-x64 prebuilds in its npm tarball
           - os: macos-latest
             target: darwin-arm64
-          - os: macos-13
+          - os: macos-latest
             target: darwin-x64
           - os: ubuntu-latest
             target: linux-x64
@@ -37,11 +39,11 @@ jobs:
             target: win32-arm64
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '24'
           cache: npm
 
       - name: Install dependencies
@@ -81,11 +83,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Download all vsix artifacts
         uses: actions/download-artifact@v4
@@ -127,11 +129,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Download all vsix artifacts
         uses: actions/download-artifact@v4
