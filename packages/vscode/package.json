@@ -13,10 +13,18 @@
   },
   "categories": ["Other"],
   "activationEvents": [
-    "onCommand:otelLogBeautifier.openTerminal"
+    "onStartupFinished"
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "terminal": {
+      "profiles": [
+        {
+          "id": "otelLogBeautifier.terminalProfile",
+          "title": "OTel Beautified"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "otelLogBeautifier.openTerminal",
@@ -37,6 +45,14 @@
       {
         "command": "otelLogBeautifier.filterAll",
         "title": "OTel: Show All Levels"
+      },
+      {
+        "command": "otelLogBeautifier.setAsDefault",
+        "title": "OTel: Set as Default Terminal"
+      },
+      {
+        "command": "otelLogBeautifier.removeDefault",
+        "title": "OTel: Restore Default Terminal"
       }
     ]
   },

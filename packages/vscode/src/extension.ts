@@ -1,9 +1,18 @@
 import * as vscode from 'vscode';
 import { BeautifiedTerminal } from './terminal/beautifiedTerminal.js';
+import { OtelTerminalProfileProvider } from './terminal/terminalProfileProvider.js';
 
 const activeTerminals = new Set<BeautifiedTerminal>();
 
 export function activate(context: vscode.ExtensionContext): void {
+  // Register terminal profile so it appears in the terminal dropdown
+  context.subscriptions.push(
+    vscode.window.registerTerminalProfileProvider(
+      'otelLogBeautifier.terminalProfile',
+      new OtelTerminalProfileProvider(),
+    ),
+  );
+
   context.subscriptions.push(
     vscode.commands.registerCommand('otelLogBeautifier.openTerminal', () => {
       const pty = new BeautifiedTerminal();
@@ -13,8 +22,6 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
 
     vscode.commands.registerCommand('otelLogBeautifier.toggleBeautify', () => {
-      const terminal = vscode.window.activeTerminal;
-      if (!terminal) return;
       for (const pty of activeTerminals) {
         pty.toggleBeautify();
       }
@@ -36,6 +43,38 @@ export function activate(context: vscode.ExtensionContext): void {
       for (const pty of activeTerminals) {
         pty.setLevelFilter(null);
       }
+    }),
+
+    vscode.commands.registerCommand('otelLogBeautifier.setAsDefault', async () => {
+      const platform = process.platform === 'darwin' ? 'osx'
+        : process.platform === 'win32' ? 'windows'
+        : 'linux';
+      const settingKey = `terminal.integrated.defaultProfile.${platform}`;
+
+      await vscode.workspace.getConfiguration().update(
+        settingKey,
+        'OTel Beautified',
+        vscode.ConfigurationTarget.Global,
+      );
+      vscode.window.showInformationMessage(
+        'OTel Beautified is now your default terminal. All new terminals will beautify JSON logs.',
+      );
+    }),
+
+    vscode.commands.registerCommand('otelLogBeautifier.removeDefault', async () => {
+      const platform = process.platform === 'darwin' ? 'osx'
+        : process.platform === 'win32' ? 'windows'
+        : 'linux';
+      const settingKey = `terminal.integrated.defaultProfile.${platform}`;
+
+      await vscode.workspace.getConfiguration().update(
+        settingKey,
+        undefined,
+        vscode.ConfigurationTarget.Global,
+      );
+      vscode.window.showInformationMessage(
+        'Default terminal restored. New terminals will use the standard shell.',
+      );
     }),
   );
 }

@@ -4,6 +4,15 @@ import type { PtyLike } from './ptyBridge.js';
 import { OutputProcessor } from './outputProcessor.js';
 import { OutputBatcher } from './outputBatcher.js';
 
+let sharedOutputChannel: vscode.OutputChannel | null = null;
+
+function getOutputChannel(): vscode.OutputChannel {
+  if (!sharedOutputChannel) {
+    sharedOutputChannel = vscode.window.createOutputChannel('OTel Log Beautifier');
+  }
+  return sharedOutputChannel;
+}
+
 export class BeautifiedTerminal implements vscode.Pseudoterminal {
   private readonly writeEmitter = new vscode.EventEmitter<string>();
   private readonly closeEmitter = new vscode.EventEmitter<number | void>();
@@ -38,7 +47,10 @@ export class BeautifiedTerminal implements vscode.Pseudoterminal {
       this.pty = pty;
 
       if (usedFallback) {
-        console.warn('[OTel Log Beautifier] node-pty unavailable, using spawn fallback.');
+        getOutputChannel().appendLine(
+          '[OTel Log Beautifier] node-pty unavailable, using child_process.spawn fallback. ' +
+          'Terminal resize and interactive programs (vim, less) will not work.',
+        );
       }
 
       this.pty.onData((data) => {
@@ -53,6 +65,7 @@ export class BeautifiedTerminal implements vscode.Pseudoterminal {
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      getOutputChannel().appendLine(`[OTel Log Beautifier] Failed to start shell: ${message}`);
       this.writeEmitter.fire(`[Failed to start shell: ${message}]\r\n`);
       this.closeEmitter.fire(1);
     }
