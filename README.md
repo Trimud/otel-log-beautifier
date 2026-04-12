@@ -229,24 +229,6 @@ Test Files  10 passed (10)
      Tests  77 passed (77)
 ```
 
-### What's tested
-
-**packages/core (46 tests):**
-- `LineBuffer` (9 tests) — complete lines, partial chunks, `\r\n`, 64KB overflow, binary NUL detection, manual flush
-- `JsonDetector` (7 tests) — valid JSON, fast-path rejection, ANSI-wrapped JSON, array rejection, empty `{}` rejection, deep nesting safety
-- `LogNormalizer` (8 tests) — OTel, pino, winston, bunyan, generic detection, priority chain tiebreaking, raw JSON preservation
-- `LogFormatter` (11 tests) — level colors, field indentation, truncation, missing optional fields, TypeError catch, serviceName/traceId display
-- `ResourceTracker` (5 tests) — first line display, identical suppression, key order independence (sorted stringify), undefined skip
-- `FieldLayout` (6 tests) — alphabetical default order, custom order, hidden fields, maxDepth truncation, empty/undefined input
-
-**packages/vscode (31 tests):**
-- `AltScreenDetector` (9 tests) — all three alt screen sequence variants (ESC[?1049h/l, ESC[?47h/l, ESC[?1047h/l)
-- `OutputProcessor` (12 tests) — JSON formatting, alt screen bypass, level filter (ERROR/WARN+/all), toggle flush, mixed content, shell prompt passthrough
-- `OutputBatcher` (5 tests) — lazy setTimeout, no-op on empty, dispose flushes immediately
-- `SpawnFallback` (5 tests) — stdin/stdout/stderr wiring, exit codes, kill, resize no-op
-
-The VS Code wiring code (`beautifiedTerminal.ts`, `ptyBridge.ts`, `extension.ts`) is integration code tested manually via F5 mode.
-
 ## Troubleshooting
 
 **Terminal appears blank / can't type**
@@ -264,31 +246,6 @@ The VS Code wiring code (`beautifiedTerminal.ts`, `ptyBridge.ts`, `extension.ts`
 **Logs not beautified**
 - Verify the terminal tab name is "OTel Beautified" (not just "zsh"). If using a regular terminal, beautification won't apply.
 - Check that your log output is valid NDJSON (one JSON object per line, no multi-line pretty-printing)
-
-## Deferred work
-
-Captured in [TODOS.md](./TODOS.md):
-
-- **P2:** Worker thread for parse/format pipeline (profile first to confirm it's needed)
-- **P3:** Copy formatted log as markdown (right-click context menu)
-- **P3:** Auto-detect and offer notification (when JSON detected in default terminal)
-
-Also planned but not yet implemented:
-
-- Status bar indicator (ON/OFF + active filter)
-- Timestamp deltas (`+Nms since previous line`)
-- Clickable file paths via `TerminalLinkProvider`
-- Debug mode config flag (log classification decisions to Output Channel)
-- Filter status line (when level filter suppresses all output)
-- Platform-specific `.vsix` builds for marketplace distribution
-
-## Design docs
-
-Full design process artifacts are in [`plans/`](./plans/):
-
-- [`plans/design.md`](./plans/design.md) — Main design document (approved)
-- [`plans/ceo-plan.md`](./plans/ceo-plan.md) — Scope decisions and strategic review
-- [`plans/test-plan.md`](./plans/test-plan.md) — Engineering review test coverage plan
 
 ## License
 
