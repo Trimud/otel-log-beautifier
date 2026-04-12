@@ -11,7 +11,14 @@
     "test": "npm run test -w packages/core && npm run test -w packages/vscode",
     "test:core": "npm run test -w packages/core",
     "test:vscode": "npm run test -w packages/vscode",
-    "package": "npm run build && cd packages/vscode && npx @vscode/vsce package --no-dependencies",
+    "package": "npm run package:darwin-arm64",
+    "package:darwin-arm64": "npm run build && ./scripts/prepare-vsix.sh darwin-arm64 && cd packages/vscode/.vsix-stage && npx @vscode/vsce package --target darwin-arm64 --out ../otel-log-beautifier-darwin-arm64-0.1.0.vsix",
+    "package:darwin-x64": "npm run build && ./scripts/prepare-vsix.sh darwin-x64 && cd packages/vscode/.vsix-stage && npx @vscode/vsce package --target darwin-x64 --out ../otel-log-beautifier-darwin-x64-0.1.0.vsix",
+    "package:linux-x64": "npm run build && ./scripts/prepare-vsix.sh linux-x64 && cd packages/vscode/.vsix-stage && npx @vscode/vsce package --target linux-x64 --out ../otel-log-beautifier-linux-x64-0.1.0.vsix",
+    "package:linux-arm64": "npm run build && ./scripts/prepare-vsix.sh linux-arm64 && cd packages/vscode/.vsix-stage && npx @vscode/vsce package --target linux-arm64 --out ../otel-log-beautifier-linux-arm64-0.1.0.vsix",
+    "package:win32-x64": "npm run build && ./scripts/prepare-vsix.sh win32-x64 && cd packages/vscode/.vsix-stage && npx @vscode/vsce package --target win32-x64 --out ../otel-log-beautifier-win32-x64-0.1.0.vsix",
+    "package:win32-arm64": "npm run build && ./scripts/prepare-vsix.sh win32-arm64 && cd packages/vscode/.vsix-stage && npx @vscode/vsce package --target win32-arm64 --out ../otel-log-beautifier-win32-arm64-0.1.0.vsix",
+    "package:all": "npm run package:darwin-arm64 && npm run package:darwin-x64 && npm run package:linux-x64 && npm run package:linux-arm64 && npm run package:win32-x64 && npm run package:win32-arm64",
     "postinstall": "cd packages/vscode/node_modules && ln -sf ../../../node_modules/node-pty node-pty 2>/dev/null || true; chmod +x node_modules/node-pty/prebuilds/darwin-*/spawn-helper 2>/dev/null || true"
   }
 }
