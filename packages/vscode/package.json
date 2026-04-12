@@ -2,7 +2,7 @@
   "name": "otel-log-beautifier",
   "displayName": "OTel Log Beautifier",
   "description": "Beautifies OpenTelemetry JSON structured logs in the VS Code terminal",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "trimud",
   "license": "MIT",
   "icon": "icon.png",
