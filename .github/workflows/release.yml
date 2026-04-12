@@ -49,6 +49,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Compile node-pty from source (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          cd node_modules/node-pty
+          npm run build || npx node-gyp rebuild
+
       - name: Make spawn-helper executable (Unix)
         if: runner.os != 'Windows'
         run: chmod +x node_modules/node-pty/prebuilds/*/spawn-helper 2>/dev/null || true

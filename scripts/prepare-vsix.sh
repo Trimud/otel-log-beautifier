@@ -17,10 +17,27 @@ if [ ! -d "$PTY_SOURCE" ]; then
   exit 1
 fi
 
+# On Linux, node-pty doesn't ship prebuilds — it compiles from source via
+# node-gyp. The compiled output lives in build/Release/, not prebuilds/.
+# Synthesize a prebuild directory from the build output so the rest of the
+# script works uniformly.
 if [ ! -d "$PTY_SOURCE/prebuilds/$TARGET" ]; then
-  echo "Error: No prebuild for target '$TARGET' in $PTY_SOURCE/prebuilds/" >&2
-  echo "Available: $(ls "$PTY_SOURCE/prebuilds/" 2>/dev/null | tr '\n' ' ')" >&2
-  exit 1
+  if [[ "$TARGET" == linux-* ]] && [ -f "$PTY_SOURCE/build/Release/pty.node" ]; then
+    echo "No prebuild for $TARGET, synthesizing from build/Release/"
+    mkdir -p "$PTY_SOURCE/prebuilds/$TARGET"
+    cp "$PTY_SOURCE/build/Release/pty.node" "$PTY_SOURCE/prebuilds/$TARGET/pty.node"
+    if [ -f "$PTY_SOURCE/build/Release/spawn-helper" ]; then
+      cp "$PTY_SOURCE/build/Release/spawn-helper" "$PTY_SOURCE/prebuilds/$TARGET/spawn-helper"
+      chmod +x "$PTY_SOURCE/prebuilds/$TARGET/spawn-helper"
+    fi
+  else
+    echo "Error: No prebuild for target '$TARGET' in $PTY_SOURCE/prebuilds/" >&2
+    echo "Available: $(ls "$PTY_SOURCE/prebuilds/" 2>/dev/null | tr '\n' ' ')" >&2
+    if [ -d "$PTY_SOURCE/build/Release" ]; then
+      echo "build/Release/ contents: $(ls "$PTY_SOURCE/build/Release/" 2>/dev/null | tr '\n' ' ')" >&2
+    fi
+    exit 1
+  fi
 fi
 
 echo "Staging vsix for target: $TARGET"
@@ -35,16 +52,9 @@ cp "$ROOT/packages/vscode/LICENSE" "$STAGE/LICENSE"
 cp "$ROOT/packages/vscode/icon.png" "$STAGE/icon.png"
 cp -r "$ROOT/packages/vscode/dist" "$STAGE/dist"
 
-# Create a clean package.json with no workspace refs, no @otel-log-beautifier/core
-# (it's bundled into dist/extension.js) and only node-pty as a runtime dep.
-# Also strip test/build scripts that reference files not in the stage.
-node -e "
-const pkg = require('$ROOT/packages/vscode/package.json');
-delete pkg.scripts;
-delete pkg.devDependencies;
-pkg.dependencies = { 'node-pty': pkg.dependencies['node-pty'] };
-require('fs').writeFileSync('$STAGE/package.json', JSON.stringify(pkg, null, 2));
-"
+# Use a helper node script (avoids Windows MSYS path translation issues
+# with `node -e` inline commands containing bash paths)
+node "$ROOT/scripts/stage-package-json.mjs" "$ROOT/packages/vscode/package.json" "$STAGE/package.json"
 
 # Create a stub .vscodeignore (none of the source exclusions apply to the stage)
 cat > "$STAGE/.vscodeignore" <<EOF
@@ -67,16 +77,8 @@ cp -r "$PTY_SOURCE/lib/"* "$STAGE/node_modules/node-pty/lib/"
 [ -f "$PTY_SOURCE/LICENSE" ] && cp "$PTY_SOURCE/LICENSE" "$STAGE/node_modules/node-pty/LICENSE"
 cp -r "$PTY_SOURCE/prebuilds/$TARGET/"* "$STAGE/node_modules/node-pty/prebuilds/$TARGET/"
 
-# Strip build-time deps from node-pty's package.json (we ship the prebuild,
-# so node-addon-api and other build tools aren't needed at runtime)
-node -e "
-const pkg = require('$PTY_SOURCE/package.json');
-delete pkg.dependencies;
-delete pkg.devDependencies;
-delete pkg.scripts;
-delete pkg.gypfile;
-require('fs').writeFileSync('$STAGE/node_modules/node-pty/package.json', JSON.stringify(pkg, null, 2));
-"
+# Strip build-time deps from node-pty's package.json
+node "$ROOT/scripts/stage-pty-package-json.mjs" "$PTY_SOURCE/package.json" "$STAGE/node_modules/node-pty/package.json"
 
 # spawn-helper must be executable
 if [ -f "$STAGE/node_modules/node-pty/prebuilds/$TARGET/spawn-helper" ]; then
