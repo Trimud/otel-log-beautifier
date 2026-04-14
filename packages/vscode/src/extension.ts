@@ -15,7 +15,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('otelLogBeautifier.openTerminal', () => {
-      const pty = new BeautifiedTerminal();
+      const pty = new BeautifiedTerminal({ cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath });
       activeTerminals.add(pty);
       const terminal = vscode.window.createTerminal({ name: 'OTel Beautified', pty });
       terminal.show();
