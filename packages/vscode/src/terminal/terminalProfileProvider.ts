@@ -7,7 +7,7 @@ export class OtelTerminalProfileProvider implements vscode.TerminalProfileProvid
   ): vscode.ProviderResult<vscode.TerminalProfile> {
     return new vscode.TerminalProfile({
       name: 'OTel Beautified',
-      pty: new BeautifiedTerminal(),
+      pty: new BeautifiedTerminal({ cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath }),
     });
   }
 }
