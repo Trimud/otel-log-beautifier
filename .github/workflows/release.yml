@@ -1,23 +1,32 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
-      publish:
-        description: 'Publish to VS Code Marketplace (requires VSCE_PAT secret)'
-        type: boolean
-        default: false
+      version:
+        description: 'Version to release (e.g. 0.2.1 or 0.3.0-beta.1) — no leading v'
+        type: string
+        required: true
       dry_run:
-        description: 'Skip creating GitHub release and marketplace publish (just build vsix files)'
+        description: 'Build only — skip publish, commit, tag, and GitHub release'
         type: boolean
         default: false
 
 jobs:
+  validate:
+    name: Validate input
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check version format
+        run: |
+          if ! echo "${{ inputs.version }}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$'; then
+            echo "ERROR: '${{ inputs.version }}' is not a valid semver (expected X.Y.Z or X.Y.Z-prerelease)" >&2
+            exit 1
+          fi
+
   build:
     name: Build ${{ matrix.target }}
+    needs: validate
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -49,6 +58,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Bump versions to ${{ inputs.version }}
+        shell: bash
+        run: |
+          npm pkg set version="${{ inputs.version }}"
+          npm pkg set version="${{ inputs.version }}" -w packages/vscode
+          npm pkg set version="${{ inputs.version }}" -w packages/core
+
       - name: Compile node-pty from source (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -71,8 +87,7 @@ jobs:
           ./scripts/prepare-vsix.sh ${{ matrix.target }}
           VSCE="$GITHUB_WORKSPACE/node_modules/.bin/vsce"
           cd packages/vscode/.vsix-stage
-          VERSION=$(node -p "require('./package.json').version")
-          "$VSCE" package --target ${{ matrix.target }} --out "../otel-log-beautifier-${{ matrix.target }}-${VERSION}.vsix"
+          "$VSCE" package --target ${{ matrix.target }} --out "../otel-log-beautifier-${{ matrix.target }}-${{ inputs.version }}.vsix"
 
       - name: Upload vsix artifact
         uses: actions/upload-artifact@v4
@@ -85,16 +100,20 @@ jobs:
   release:
     name: Release
     needs: build
+    if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
 
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
+          cache: npm
 
       - name: Download all vsix artifacts
         uses: actions/download-artifact@v4
@@ -106,50 +125,8 @@ jobs:
       - name: List artifacts
         run: ls -la vsix-artifacts/
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: vsix-artifacts/*.vsix
-          generate_release_notes: true
-          draft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
-
       - name: Publish to VS Code Marketplace
-        if: ${{ !contains(github.ref_name, '-') }}
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: |
-          if [ -z "$VSCE_PAT" ]; then
-            echo "VSCE_PAT secret not set, skipping marketplace publish"
-            exit 0
-          fi
-          for vsix in vsix-artifacts/*.vsix; do
-            echo "Publishing $vsix"
-            npx @vscode/vsce publish --packagePath "$vsix"
-          done
-
-  manual-publish:
-    name: Manual Publish
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && inputs.publish && !inputs.dry_run
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-
-      - name: Download all vsix artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: vsix-artifacts
-          pattern: vsix-*
-          merge-multiple: true
-
-      - name: Publish to VS Code Marketplace
+        if: ${{ !contains(inputs.version, '-') }}
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: |
@@ -161,3 +138,29 @@ jobs:
             echo "Publishing $vsix"
             npx @vscode/vsce publish --packagePath "$vsix"
           done
+
+      - name: Bump versions to ${{ inputs.version }}
+        run: |
+          npm pkg set version="${{ inputs.version }}"
+          npm pkg set version="${{ inputs.version }}" -w packages/vscode
+          npm pkg set version="${{ inputs.version }}" -w packages/core
+          npm install --package-lock-only --ignore-scripts
+
+      - name: Commit, tag, and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json packages/vscode/package.json packages/core/package.json
+          git commit -m "chore: release v${{ inputs.version }}"
+          git tag -a "v${{ inputs.version }}" -m "Release v${{ inputs.version }}"
+          git push origin main
+          git push origin "v${{ inputs.version }}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.version }}
+          files: vsix-artifacts/*.vsix
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(inputs.version, '-') }}

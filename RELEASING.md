@@ -26,42 +26,25 @@
 
 ## Cutting a release
 
-### Option A: Automatic (on tag push)
-
-```bash
-# 1. Update version in both package.json files and the VS Code one
-# Root package.json — bump "version"
-# packages/vscode/package.json — bump "version"
-# packages/core/package.json — bump "version"
-
-# 2. Commit the version bump
-git add package.json packages/*/package.json
-git commit -m "chore: release v0.2.0"
-
-# 3. Tag it
-git tag v0.2.0
-
-# 4. Push
-git push && git push --tags
-```
-
-The `release.yml` workflow fires automatically on the tag push:
-- Builds vsix for 6 platforms (darwin-arm64, darwin-x64, linux-x64, linux-arm64, win32-x64, win32-arm64)
-- Creates a GitHub Release with all vsix files attached
-- Publishes each vsix to the VS Code Marketplace (if `VSCE_PAT` secret is set)
-
-Pre-release versions (e.g., `v0.2.0-beta.1`) create a GitHub release marked as pre-release and skip marketplace publish.
-
-### Option B: Manual trigger
-
-If you want to test the build without publishing:
+### Option A: Dispatch the Release workflow (recommended)
 
 1. Go to https://github.com/Trimud/otel-log-beautifier/actions/workflows/release.yml
-2. Click "Run workflow"
-3. Set `publish` to `false` and `dry_run` to `true`
-4. Builds run, vsix artifacts available for download, nothing published
+2. Click **Run workflow**
+3. Enter the `version` (e.g. `0.2.1` or `0.3.0-beta.1` — no leading `v`)
+4. Leave `dry_run` unchecked for a real release; check it to build vsix artifacts only
 
-### Option C: Publish manually from your machine
+The workflow:
+- Validates the version is valid semver
+- Builds vsix for 6 platforms (darwin-arm64, darwin-x64, linux-x64, linux-arm64, win32-x64, win32-arm64) with the new version baked in
+- Publishes each vsix to the VS Code Marketplace (skipped for pre-release versions containing `-`)
+- Bumps `version` in the three `package.json` files + `package-lock.json`, commits `chore: release vX.Y.Z`, tags `vX.Y.Z`, pushes both to `main`
+- Creates a GitHub Release on the new tag with all vsix files attached
+
+The commit and tag are only created after a successful build and marketplace publish — failed runs leave no trace in git history.
+
+> **Note:** if `main` is protected, the default `GITHUB_TOKEN` may not be able to push. Either allow the `github-actions[bot]` to bypass protection, or swap the push steps to use a PAT.
+
+### Option B: Publish manually from your machine
 
 ```bash
 # After merging changes to main
