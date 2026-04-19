@@ -22,6 +22,6 @@
     "postinstall": "cd packages/vscode/node_modules && ln -sf ../../../node_modules/node-pty node-pty 2>/dev/null || true; chmod +x node_modules/node-pty/prebuilds/darwin-*/spawn-helper 2>/dev/null || true"
   },
   "devDependencies": {
-    "@vscode/vsce": "^3.7.1"
+    "@vscode/vsce": "^3.9.1"
   }
 }

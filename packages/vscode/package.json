@@ -92,8 +92,8 @@
     "node-pty": "^1.0.0"
   },
   "devDependencies": {
-    "@types/vscode": "^1.85.0",
-    "esbuild": "^0.24.0",
+    "@types/vscode": "^1.116.0",
+    "esbuild": "^0.28.0",
     "typescript": "^5.4.0",
     "vitest": "^3.0.0"
   }
